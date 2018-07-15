@@ -8,6 +8,12 @@
 	<!-- For convenient offline development: uncomment, comment out again before release. -->
 	<!-- <link rel="stylesheet" href="css/bootstrap.min.css"> -->
 
+	<style>
+		a {
+			font-weight: bold;
+		}
+	</style>
+
     <title>Visualize WhatsApp Chats</title>
   </head>
   <body>
@@ -15,7 +21,7 @@
 	<div class="container mt-5">
 		<div class="row">
 			<div class="col">
-				<h1>Visualizing WhatsApp via Javascript</h1>
+				<h1>Visualizing WhatsApp-Chats</h1>
 				<p class="text-muted"><a href="/demo.html">Click here for a Demo.</a><br>Need help? Explanation at the bottom! <a href="#explanation">Click&nbsp;to&nbsp;here&nbsp;scroll.</a></p>
 			</div>
 		</div>
@@ -23,12 +29,41 @@
 		<hr>
 
 		<div class="row text-center">
-			<div class="col">
-				<h1>TODO</h1>
+			<div class="col-sm-12 col-md-6">
+				<h5 class="text-left mb-3">1. Open Chat Log:</h5>
+				<label class="btn btn-outline-primary d-block" for="input-file">
+					Open New Chat Log
+					<input id="input-file" name="input-file" class="form-control d-none" type="file">
+				</label>
+			</div>
+			<div class="col-sm-12 col-md-4 mt-4 mt-md-0 ">
+				<h5 class="text-left mb-3 text-muted">
+					Chosen File
+				</h5>
+				<input id="input-filename" class="form-control text-muted" type="text" value="Filename will show up here." readonly>
+			</div>
+			<div class="col-sm-12 col-md-2 mt-4 mt-md-0">
+				<h5 class="text-left mb-3 text-muted" data-toggle="tooltip" title="If you want to convert your chat into a .csv file so you can process it yourself.">Optional<u><sup>?</sup></u></h5>
+				<button id="btn-csv" class="form-control btn btn-outline-secondary" style="white-space: normal">Export to .CSV</button>
 			</div>
 		</div>
 	
-		<hr>
+		<hr class="my-3">
+
+		<div class="row text-center">
+			<div class="col-sm-12 col-md-6">
+				<button class="btn btn-primary w-100" id="btn-start">
+					Start Processing
+				</button>
+			</div>
+		</div>
+	
+		<!-- Insert Plots here -->
+		<!-- For Every Plot -->
+		<!--     hr.my-3 -->
+		<!--     div.plot -->
+
+		<hr class="mt-5">
 		
 		<div class="row my-5">
 			<div class="col">
@@ -62,13 +97,90 @@
 
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <!-- <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script> -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script> -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
 	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js" integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em" crossorigin="anonymous"></script>
 	<!-- <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> -->
 	<!-- For convenient offline development: uncomment, comment out again before release. -->
 	<!-- <script src="js/bootstrap.min.js"></script> -->
 	<!-- <script src="js/plotly-latest.min.js"></script> -->
 
+	<script>
+		// Activate tooltips
+		$(function () {
+			$('[data-toggle="tooltip"]').tooltip()
+		});
+
+		////////////////////////////////////////////
+		//////////// Start of App Logic ////////////
+		////////////////////////////////////////////
+		// Filehandler for the currently selected chat that you want to plot.
+		let currentFile = null;
+		// Handle file input
+		document.getElementById('input-file').addEventListener('change', function(event) {
+			currentFile = event.target.files[0];
+			// feedback
+			document.getElementById('input-filename').value = event.target.files[0].name;
+		}, false);
+
+		// important regex for processing of chat messages
+		const regex = /(?:^(\d{1,2}).(\d{1,2}).(\d{2,4}),\s(\d{1,2}):(\d{1,2})\s-\s(.*(?=:\s)):\s([\S\s]*?(?=\s\d{1,2}.\d{1,2}.\d{2,4}))|^(\d{1,2}).(\d{1,2}).(\d{2,4}),\s(\d{1,2}):(\d{1,2})\s-\s(.*(?=:\s)):\s([\S\s]*))/gmu;
+		////////////////////////////////////////////
+		//////////////// CSV Export ////////////////
+		////////////////////////////////////////////
+		document.getElementById('btn-csv').addEventListener('click', function(event) {
+			// Feedback
+			if (currentFile === null) {
+				alert("No file specified. Pick a file first.");
+				return;
+			}
+
+			// Download a file with text content i.e. the .csv
+			function download(fileName, text) {
+				let element = document.createElement('a');
+				element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+				element.setAttribute('download', fileName);
+				element.style.display = 'none';
+				document.body.appendChild(element);
+				element.click();
+				document.body.removeChild(element);
+			}
+
+			// return a string containing the .csv version of the chat
+			function getCSVfromChat(fileContent) {
+				let csv = 'date (YYYY-MM-DD),time (hh:mm),name,text\n';
+				let m;
+				while ((m = regex.exec(fileContent)) !== null) {
+					// This is necessary to avoid infinite loops with zero-width matches
+					if (m.index === regex.lastIndex) {
+						regex.lastIndex++;
+					}
+
+					// this means its a regular message of the conversation
+					if(m[1] !== undefined) {
+						csv += `${m[3]}-${m[2]}-${m[1]},${m[4]}:${m[5]},${m[6]},"${m[7]}",\n`;
+					}
+					// this means its the last regular message
+					// (this is due to how the regex works,
+					// the last message has different capture groups)
+					else {
+						csv += `${m[10]}-${m[9]}-${m[8]},${m[11]}:${m[12]},${m[13]},"${m[14]}"\n`;
+					}
+				}
+
+				return csv;
+			}
+
+			// Handle the .csv export
+			let fileReader = new FileReader();
+			fileReader.onload = function(e) {
+				let fileContent = fileReader.result;
+				let csv = getCSVfromChat(fileContent);
+				// the filename equals the original filename but with a .csv extension
+				download((currentFile.name.substr(0, currentFile.name.lastIndexOf('.')) || currentFile.name) + '.csv', csv)
+			}
+			fileReader.readAsText(currentFile);
+		});
+	</script>
   </body>
 </html>
