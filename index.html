@@ -178,7 +178,7 @@
 		////////////////////////////////////////////
 		//////////////// Processing ////////////////
 		////////////////////////////////////////////
-		function consoleTotalAndPercentages(msgDict) {
+		function consoleTotalMessagesAndPercentages(msgDict) {
 			console.warn('File:', currentFile.name);
 			let sumTotal = 0;
 			Object.keys(msgDict).forEach(key => {
@@ -189,9 +189,7 @@
 				return [key, msgDict[key].length];
 			});
 			// descending order
-			items.sort(function(first, second) {
-				return second[1] - first[1];
-			});
+			items.sort((a, b) => b[1] - a[1]);
 
 			console.log("A sum of", sumTotal, "message/s has been sent where:");
 			items.forEach(pair => {
@@ -199,7 +197,7 @@
 			});
 		}
 
-		function graphRowTotalPieAndBar(msgDict) {
+		function graphRowTotalMessagesAndPercentages(msgDict) {
 			// Create elements for plots if needed
 			if ($('#plot-total-pie').length == 0 && $('#plot-total-bar').length == 0 )  {
 				$('#plotted-content')
@@ -246,9 +244,7 @@
 				return [key, msgDict[key].length];
 			});
 			// descending order
-			items.sort(function(first, second) {
-				return second[1] - first[1];
-			});
+			items.sort((a, b) => b[1] - a[1]);
 			
 			const senderMsgCount = [], senderName = [];
 			items.forEach(pair => {
@@ -267,10 +263,36 @@
 				title: '% of messages per user'
 			});
 
-			// generate plots
 			Plotly.react('plot-total-bar', [{
 				y: senderMsgCount,
 				x: senderName,
+				text: senderMsgCount,
+				textposition: 'auto',
+				marker:{
+    				color: [ // so that big chats for up to 20 people can have a color, the rest will be black
+						'#1f77b4',  // muted blue
+						'#ff7f0e',  // safety orange
+						'#2ca02c',  // cooked asparagus green
+						'#d62728',  // brick red
+						'#9467bd',  // muted purple
+						'#8c564b',  // chestnut brown
+						'#e377c2',  // raspberry yogurt pink
+						'#7f7f7f',  // middle gray
+						'#bcbd22',  // curry yellow-green
+						'#17becf',  // blue-teal
+						// repeat
+						'#1f77b4',  // muted blue
+						'#ff7f0e',  // safety orange
+						'#2ca02c',  // cooked asparagus green
+						'#d62728',  // brick red
+						'#9467bd',  // muted purple
+						'#8c564b',  // chestnut brown
+						'#e377c2',  // raspberry yogurt pink
+						'#7f7f7f',  // middle gray
+						'#bcbd22',  // curry yellow-green
+						'#17becf',  // blue-teal
+					]
+				},
 				type: 'bar'
 			}], { 
 				title: 'Message count per user',
@@ -279,10 +301,114 @@
 			});
 		}
 
+		/* emojis dont have a length of == 1
+		 * wat do 
+		 */
+		function graphRowTotalCharactersAndPercentages(msgDict) {
+			const sums = [];
+			Object.keys(msgDict).map( user => {
+				// sums = [ ["name", 123], ... ]
+				sums.push( [user, msgDict[user].reduce( (acc, val) => acc + val['text'].length, 0 )] );
+			});
+			
+			// descending order
+			sums.sort((a, b) => b[1] - a[1]);
+			
+			// Create elements for plots if needed
+			if ($('#plot-total-characters-bar').length == 0 && $('#plot-total-characters-pie').length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-characters-bar',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-characters-pie',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			Plotly.react('plot-total-characters-bar', [{
+				y: sums.map(val => val[1]),
+				x: sums.map(val => val[0]),
+				text: sums.map(val => val[1]),
+				textposition: 'auto',
+				marker:{
+    				color: [ // so that big chats for up to 20 people can have a color, the rest will be black
+						'#1f77b4',  // muted blue
+						'#ff7f0e',  // safety orange
+						'#2ca02c',  // cooked asparagus green
+						'#d62728',  // brick red
+						'#9467bd',  // muted purple
+						'#8c564b',  // chestnut brown
+						'#e377c2',  // raspberry yogurt pink
+						'#7f7f7f',  // middle gray
+						'#bcbd22',  // curry yellow-green
+						'#17becf',  // blue-teal
+						// repeat
+						'#1f77b4',  // muted blue
+						'#ff7f0e',  // safety orange
+						'#2ca02c',  // cooked asparagus green
+						'#d62728',  // brick red
+						'#9467bd',  // muted purple
+						'#8c564b',  // chestnut brown
+						'#e377c2',  // raspberry yogurt pink
+						'#7f7f7f',  // middle gray
+						'#bcbd22',  // curry yellow-green
+						'#17becf',  // blue-teal
+					]
+				},
+				type: 'bar'
+			}], { 
+				title: 'Character count per user',
+				// xaxis: { title: 'User' },
+				yaxis: { title: 'Characters' } 
+			});
+
+			Plotly.react('plot-total-characters-pie', [{
+				values: sums.map(val => val[1]),
+				labels: sums.map(val => val[0]),
+				hoverinfo: 'label+percent',
+				type: 'pie',
+				hole: 0.6
+			}], { 
+				title: '% of characters per user'
+			});
+
+		}
+
 		function processAll(msgDict = {}) {
 			const processFunctions = [
-				consoleTotalAndPercentages,
-				graphRowTotalPieAndBar
+				graphRowTotalMessagesAndPercentages,
+				graphRowTotalCharactersAndPercentages,
+				consoleTotalMessagesAndPercentages,
 			];
 			processFunctions.forEach(func => func(msgDict));
 		}
