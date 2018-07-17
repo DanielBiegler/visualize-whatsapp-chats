@@ -201,7 +201,7 @@
 
 		function graphRowTotalPieAndBar(msgDict) {
 			// Create elements for plots if needed
-			if ($('#plot-total-circle').length == 0 && $('#plot-total-bar').length == 0 )  {
+			if ($('#plot-total-pie').length == 0 && $('#plot-total-bar').length == 0 )  {
 				$('#plotted-content')
 				.append(
 					$('<hr/>', {
@@ -219,7 +219,7 @@
 						})
 						.append(
 							$('<div/>', {
-								id: 'plot-total-circle',
+								id: 'plot-total-pie',
 								class: 'responsive-plot'
 							})
 						)
@@ -257,7 +257,7 @@
 			});
 
 
-			Plotly.react('plot-total-circle', [{
+			Plotly.react('plot-total-pie', [{
 				values: senderMsgCount,
 				labels: senderName,
 				hoverinfo: 'label+percent',
@@ -350,7 +350,8 @@
 					Plotly.Plots.resize(nodesToResize[i]);
 				}
 			};
-			
+
+			window.onresize();
 		};
 	</script>
   </body>
