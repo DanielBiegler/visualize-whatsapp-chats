@@ -178,6 +178,115 @@
 		////////////////////////////////////////////
 		//////////////// Processing ////////////////
 		////////////////////////////////////////////
+		function consoleTotalAndPercentages(msgDict) {
+			console.warn('File:', currentFile.name);
+			let sumTotal = 0;
+			Object.keys(msgDict).forEach(key => {
+				sumTotal += msgDict[key].length;
+			});
+			// Create items array to make the totals-dictionary sortable
+			let items = Object.keys(msgDict).map(function(key) {
+				return [key, msgDict[key].length];
+			});
+			// descending order
+			items.sort(function(first, second) {
+				return second[1] - first[1];
+			});
+
+			console.log("A sum of", sumTotal, "message/s has been sent where:");
+			items.forEach(pair => {
+				console.log('  ', pair[0], '=>', pair[1], '(', ((pair[1] / sumTotal) * 100).toFixed(2), '% )');
+			});
+		}
+
+		function graphRowTotalPieAndBar(msgDict) {
+			// Create elements for plots if needed
+			if ($('#plot-total-circle').length == 0 && $('#plot-total-bar').length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-circle',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-bar',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			// Create items array to make the totals-dictionary sortable
+			let items = Object.keys(msgDict).map(function(key) {
+				return [key, msgDict[key].length];
+			});
+			// descending order
+			items.sort(function(first, second) {
+				return second[1] - first[1];
+			});
+			
+			const senderMsgCount = [], senderName = [];
+			items.forEach(pair => {
+				senderName.push(pair[0]);
+				senderMsgCount.push(pair[1]);
+			});
+
+
+			Plotly.react('plot-total-circle', [{
+				values: senderMsgCount,
+				labels: senderName,
+				hoverinfo: 'label+percent',
+				type: 'pie',
+				hole: 0.6
+			}], { 
+				title: '% of messages per user'
+			});
+
+			// generate plots
+			Plotly.react('plot-total-bar', [{
+				y: senderMsgCount,
+				x: senderName,
+				type: 'bar'
+			}], { 
+				title: 'Message count per user',
+				// xaxis: { title: 'User' },
+				yaxis: { title: 'Messages' } 
+			});
+		}
+
+		function processAll(msgDict = {}) {
+			const processFunctions = [
+				consoleTotalAndPercentages,
+				graphRowTotalPieAndBar
+			];
+			processFunctions.forEach(func => func(msgDict));
+		}
+
 		document.getElementById('btn-start').addEventListener('click', function(event) {
 			// Feedback
 			if (currentFile === null) {
@@ -215,63 +324,34 @@
 				// maybe you need an array for ease of use for some statistic?
 				// let messageList = getMessageListFromChat();
 				const msgDict = getMessageDictfromChat(fileContent); // better name for function?
-				console.warn('File:', currentFile.name);
-				// now work with the data.
-				// start plotting.
-				let sum = 0;
-				Object.keys(msgDict).forEach(key => {
-					console.log(key, "sent", msgDict[key].length, "message/s.");
-					sum += msgDict[key].length;
-				});
-				
-				console.log("A sum of", sum, "message/s has been sent where:");
-				const percentData = [], senderData = [];
-				Object.keys(msgDict).forEach(key => {
-					percentData.push(((msgDict[key].length / sum) * 100));
-					senderData.push(key);
-					console.log('  ', key, '=>', ((msgDict[key].length / sum) * 100).toFixed(2), '%');
-				});
-				
-				// Create elements for plots
-				$('<hr/>', {
-					class: 'my-3'
-				}).appendTo('#plotted-content');
-
-				$('<div/>', {
-					id: 'row-plot-total',
-					class: 'row text-center'
-				}).appendTo('#plotted-content');
-
-				$('<div/>', {
-					id: 'plot-total-circle',
-					class: 'col-sm-12 col-md-6',
-					style: 'height: 500px;'
-				}).appendTo('#row-plot-total');
-
-				$('<div/>', {
-					id: 'plot-total-bar',
-					class: 'col-sm-12 col-md-6'
-				}).appendTo('#row-plot-total');
-
-				// generate plots
-				Plotly.plot('plot-total-circle', [{
-					values: percentData,
-					labels: senderData,
-					hoverinfo: 'label+percent',
-					type: 'pie',
-					hole: 0.6
-				}]);
-
-				// generate plots
-				Plotly.plot('plot-total-bar', [{
-					y: percentData,
-					x: senderData,
-					type: 'bar'
-				}]);
-
+				processAll(msgDict);
+				makePlotsResponsive();
 			}
 			fileReader.readAsText(currentFile);
 		});
+
+		// This makes all plots responsive if they have the 'responsive-plot' class
+		function makePlotsResponsive() {
+			const WIDTH_IN_PERCENT_OF_PARENT = 100,
+				 HEIGHT_IN_PERCENT_OF_PARENT = 100;
+			
+			const nodesToResize = Plotly.d3.selectAll(".responsive-plot")
+				.style({
+					width: WIDTH_IN_PERCENT_OF_PARENT + '%',
+					// 'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
+					
+					height: HEIGHT_IN_PERCENT_OF_PARENT + '%', // 'vh'-unit breaks it
+					// 'margin-top': (100 - HEIGHT_IN_PERCENT_OF_PARENT) / 2 + '%'
+				}
+			)[0]; // [0] is important because otherwise it returns an array in an array
+
+			window.onresize = function() {
+				for (let i = 0; i < nodesToResize.length; i++) {
+					Plotly.Plots.resize(nodesToResize[i]);
+				}
+			};
+			
+		};
 	</script>
   </body>
 </html>
