@@ -178,25 +178,32 @@
 		////////////////////////////////////////////
 		//////////////// Processing ////////////////
 		////////////////////////////////////////////
+		// see getMessageDictfromChat for msgDict Layout
 		function consoleTotalMessagesAndPercentages(msgDict) {
 			console.warn('File:', currentFile.name);
 			let sumTotal = 0;
 			Object.keys(msgDict).forEach(key => {
-				sumTotal += msgDict[key].length;
+				sumTotal += msgDict[key]['texts'].length;
 			});
-			// Create items array to make the totals-dictionary sortable
-			let items = Object.keys(msgDict).map(function(key) {
-				return [key, msgDict[key].length];
+
+			const totals = [];
+			Object.keys(msgDict).forEach( user => {
+				totals.push([
+					user,
+					msgDict[user]['texts'].length,
+					msgDict[user]['color']
+				]);
 			});
 			// descending order
-			items.sort((a, b) => b[1] - a[1]);
-
+			totals.sort((a, b) => b[1] - a[1]);
+			
 			console.log("A sum of", sumTotal, "message/s has been sent where:");
-			items.forEach(pair => {
+			totals.forEach(pair => {
 				console.log('  ', pair[0], '=>', pair[1], '(', ((pair[1] / sumTotal) * 100).toFixed(2), '% )');
 			});
 		}
 
+		// see getMessageDictfromChat for msgDict Layout
 		function graphRowTotalMessagesAndPercentages(msgDict) {
 			// Create elements for plots if needed
 			if ($('#plot-total-pie').length == 0 && $('#plot-total-bar').length == 0 )  {
@@ -241,57 +248,34 @@
 
 			// Create items array to make the totals-dictionary sortable
 			let items = Object.keys(msgDict).map(function(key) {
-				return [key, msgDict[key].length];
+				return [key, msgDict[key]['texts'].length, msgDict[key]['color']];
 			});
 			// descending order
 			items.sort((a, b) => b[1] - a[1]);
-			
-			const senderMsgCount = [], senderName = [];
-			items.forEach(pair => {
-				senderName.push(pair[0]);
-				senderMsgCount.push(pair[1]);
-			});
-
+			const values = items.map(val => val[1]);
+			const labels = items.map(val => val[0]);
+			const color  = items.map(val => val[2]);
 
 			Plotly.react('plot-total-pie', [{
-				values: senderMsgCount,
-				labels: senderName,
+				values: values,
+				labels: labels,
 				hoverinfo: 'label+percent',
 				type: 'pie',
-				hole: 0.6
+				hole: 0.6,
+				marker: {
+					colors: color
+				}
 			}], { 
 				title: '% of messages per user'
 			});
 
 			Plotly.react('plot-total-bar', [{
-				y: senderMsgCount,
-				x: senderName,
-				text: senderMsgCount,
+				y: values,
+				x: labels,
+				text: values,
 				textposition: 'auto',
-				marker:{
-    				color: [ // so that big chats for up to 20 people can have a color, the rest will be black
-						'#1f77b4',  // muted blue
-						'#ff7f0e',  // safety orange
-						'#2ca02c',  // cooked asparagus green
-						'#d62728',  // brick red
-						'#9467bd',  // muted purple
-						'#8c564b',  // chestnut brown
-						'#e377c2',  // raspberry yogurt pink
-						'#7f7f7f',  // middle gray
-						'#bcbd22',  // curry yellow-green
-						'#17becf',  // blue-teal
-						// repeat
-						'#1f77b4',  // muted blue
-						'#ff7f0e',  // safety orange
-						'#2ca02c',  // cooked asparagus green
-						'#d62728',  // brick red
-						'#9467bd',  // muted purple
-						'#8c564b',  // chestnut brown
-						'#e377c2',  // raspberry yogurt pink
-						'#7f7f7f',  // middle gray
-						'#bcbd22',  // curry yellow-green
-						'#17becf',  // blue-teal
-					]
+				marker: {
+    				color: color
 				},
 				type: 'bar'
 			}], { 
@@ -303,16 +287,24 @@
 
 		/* emojis dont have a length of == 1
 		 * wat do 
+		 * also when someone sends media, now the "<media omitted>" counts as characters
 		 */
 		function graphRowTotalCharactersAndPercentages(msgDict) {
 			const sums = [];
 			Object.keys(msgDict).map( user => {
 				// sums = [ ["name", 123], ... ]
-				sums.push( [user, msgDict[user].reduce( (acc, val) => acc + val['text'].length, 0 )] );
+				sums.push([
+					user,
+					msgDict[user]['texts'].reduce( (acc, val) => acc + val['text'].length, 0 ),
+					msgDict[user]['color']
+				]);
 			});
 			
 			// descending order
 			sums.sort((a, b) => b[1] - a[1]);
+			const values = sums.map(val => val[1]);
+			const labels = sums.map(val => val[0]);
+			const color  = sums.map(val => val[2]);
 			
 			// Create elements for plots if needed
 			if ($('#plot-total-characters-bar').length == 0 && $('#plot-total-characters-pie').length == 0 )  {
@@ -356,34 +348,12 @@
 			}
 
 			Plotly.react('plot-total-characters-bar', [{
-				y: sums.map(val => val[1]),
-				x: sums.map(val => val[0]),
-				text: sums.map(val => val[1]),
+				y: values,
+				x: labels,
+				text: values,
 				textposition: 'auto',
 				marker:{
-    				color: [ // so that big chats for up to 20 people can have a color, the rest will be black
-						'#1f77b4',  // muted blue
-						'#ff7f0e',  // safety orange
-						'#2ca02c',  // cooked asparagus green
-						'#d62728',  // brick red
-						'#9467bd',  // muted purple
-						'#8c564b',  // chestnut brown
-						'#e377c2',  // raspberry yogurt pink
-						'#7f7f7f',  // middle gray
-						'#bcbd22',  // curry yellow-green
-						'#17becf',  // blue-teal
-						// repeat
-						'#1f77b4',  // muted blue
-						'#ff7f0e',  // safety orange
-						'#2ca02c',  // cooked asparagus green
-						'#d62728',  // brick red
-						'#9467bd',  // muted purple
-						'#8c564b',  // chestnut brown
-						'#e377c2',  // raspberry yogurt pink
-						'#7f7f7f',  // middle gray
-						'#bcbd22',  // curry yellow-green
-						'#17becf',  // blue-teal
-					]
+    				color: color
 				},
 				type: 'bar'
 			}], { 
@@ -393,11 +363,14 @@
 			});
 
 			Plotly.react('plot-total-characters-pie', [{
-				values: sums.map(val => val[1]),
-				labels: sums.map(val => val[0]),
+				values: values,
+				labels: labels,
 				hoverinfo: 'label+percent',
 				type: 'pie',
-				hole: 0.6
+				hole: 0.6,
+				marker: {
+					colors: color
+				}
 			}], { 
 				title: '% of characters per user'
 			});
@@ -421,6 +394,23 @@
 			}
 
 			function getMessageDictfromChat(fileContent) {
+				// in future replace the others
+				const colors = [
+					'#29B6F6',  // material design 400
+					'#FFCA28',  // material design 400
+					// standard plotly colors vvv
+					'#2ca02c',
+					'#d62728',
+					'#9467bd',
+					'#8c564b',
+					'#e377c2',
+					'#7f7f7f',
+					'#bcbd22',
+					'#17becf',
+				];
+				let color_index = 0;
+
+				// "<user>": {"texts": [{<date>, <text>}, ..], "color": "#ff00ff"}
 				const dict = {};
 				let m;
 				while ((m = regex.exec(fileContent)) !== null) {
@@ -429,12 +419,16 @@
 						regex.lastIndex++;
 					}
 
-
 					if(dict.hasOwnProperty(m[6]) == false) {
-						dict[m[6]] = [];
+						if (color_index >= colors.length) {
+							color_index = 0;
+						}
+
+						dict[m[6]] = { 'texts': [], 'color': colors[color_index] };
+						color_index += 1;
 					}
 					
-					dict[m[6]].push(
+					dict[m[6]]['texts'].push(
 						{
 							"date": new Date(m[3], parseInt(m[2]) - 1, m[1], m[4], m[5]),
 							"text": m[7]
