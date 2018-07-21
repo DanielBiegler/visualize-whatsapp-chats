@@ -287,6 +287,104 @@
 			});
 		}
 
+		/*
+		 */
+		function graphRowTotalMedia(msgDict) {
+			const sums = [];
+			Object.keys(msgDict).map( user => {
+				sums.push([
+					user,
+					msgDict[user]['texts'].reduce( (acc, val) => {
+						// dont count the characters of the omitted media text
+						if (mediaRegex.exec( val['text'] ) !== null) {
+							return acc + 1;
+						} else {
+							return acc;
+						}
+							
+					}, 0 ),
+					msgDict[user]['color']
+				]);
+			});
+
+			// descending order
+			sums.sort((a, b) => b[1] - a[1]);
+			const values = sums.map(val => val[1]);
+			const labels = sums.map(val => val[0]);
+			const color  = sums.map(val => val[2]);
+			
+			const idPie = 'plot-total-media-pie';
+			const idBar = 'plot-total-media-bar';
+			// Create elements for plots if needed
+			if ($('#'+idPie).length == 0 && $('#'+idBar).length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: idPie,
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: idBar,
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			Plotly.react(idBar, [{
+				y: values,
+				x: labels,
+				text: values,
+				textposition: 'auto',
+				marker:{
+    				color: color
+				},
+				type: 'bar'
+			}], { 
+				title: 'Media count per user',
+				// xaxis: { title: 'User' },
+				yaxis: { title: 'Media' } 
+			});
+
+			Plotly.react(idPie, [{
+				values: values,
+				labels: labels,
+				hoverinfo: 'label+percent',
+				type: 'pie',
+				hole: 0.6,
+				marker: {
+					colors: color
+				}
+			}], { 
+				title: '% of Media per user'
+			});
+		}
+
 		/* emojis dont have a length of == 1
 		 * wat do 
 		 * also when someone sends media, now the "<media omitted>" counts as characters
@@ -391,6 +489,7 @@
 			const processFunctions = [
 				graphRowTotalMessagesAndPercentages,
 				graphRowTotalCharactersAndPercentages,
+				graphRowTotalMedia,
 				consoleTotalMessagesAndPercentages,
 			];
 			processFunctions.forEach(func => func(msgDict));
