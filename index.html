@@ -126,7 +126,9 @@
 		}, false);
 
 		// important regex for processing of chat messages
-		const regex = /^(\d{1,2}).(\d{1,2}).(\d{2,4}),\s(\d{1,2}):(\d{1,2})\s-\s(.*?(?=:\s)):\s([\S\s]*?(?=\s\d{1,2}.\d{1,2}.\d{2,4})|[\S\s]*)/gmu;
+		const textRegex = /^(\d{1,2}).(\d{1,2}).(\d{2,4}),\s(\d{1,2}):(\d{1,2})\s-\s(.*?(?=:\s)):\s([\S\s]*?(?=\s\d{1,2}.\d{1,2}.\d{2,4})|[\S\s]*)/gmu;
+		// for omitted media files
+		const mediaRegex = /(<(?:Media omitted|Medien ausgelassen)>)$/gmui; // case insensitive
 		////////////////////////////////////////////
 		//////////////// CSV Export ////////////////
 		////////////////////////////////////////////
@@ -152,10 +154,10 @@
 			function getCSVfromChat(fileContent) {
 				let csv = 'date (YYYY-MM-DD),time (hh:mm),name,text\n';
 				let m;
-				while ((m = regex.exec(fileContent)) !== null) {
+				while ((m = textRegex.exec(fileContent)) !== null) {
 					// This is necessary to avoid infinite loops with zero-width matches
-					if (m.index === regex.lastIndex) {
-						regex.lastIndex++;
+					if (m.index === textRegex.lastIndex) {
+						textRegex.lastIndex++;
 					}
 
 					csv += `${m[3]}-${m[2]}-${m[1]},${m[4]}:${m[5]},${m[6]},"${m[7]}",\n`;
@@ -295,7 +297,15 @@
 				// sums = [ ["name", 123], ... ]
 				sums.push([
 					user,
-					msgDict[user]['texts'].reduce( (acc, val) => acc + val['text'].length, 0 ),
+					msgDict[user]['texts'].reduce( (acc, val) => {
+						// dont count the characters of the omitted media text
+						if (mediaRegex.exec( val['text'] ) !== null) {
+							console.log("Media omitted gefunden von User: ", user, val);
+							return acc;
+						} else {
+							return acc + val['text'].length;
+						}
+					}, 0 ),
 					msgDict[user]['color']
 				]);
 			});
@@ -413,10 +423,10 @@
 				// "<user>": {"texts": [{<date>, <text>}, ..], "color": "#ff00ff"}
 				const dict = {};
 				let m;
-				while ((m = regex.exec(fileContent)) !== null) {
+				while ((m = textRegex.exec(fileContent)) !== null) {
 					// This is necessary to avoid infinite loops with zero-width matches
-					if (m.index === regex.lastIndex) {
-						regex.lastIndex++;
+					if (m.index === textRegex.lastIndex) {
+						textRegex.lastIndex++;
 					}
 
 					if(dict.hasOwnProperty(m[6]) == false) {
