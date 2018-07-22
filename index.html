@@ -385,6 +385,66 @@
 			});
 		}
 
+		/* Messages per:
+		 *  - hour
+		 *  - weekday
+		 *  - week
+		 *  - month
+		 *  - year
+		 * 
+		 */
+		function graphRowMessagesPerDate(msgDict) {
+			const idPlot = 'plot-per-date-line';
+			// Create elements for plots if needed
+			if ($('#'+idPlot).length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12',
+							style: 'height: 600px;'
+						})
+						.append(
+							$('<div/>', {
+								id: idPlot,
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			const data = [];
+			Object.keys(msgDict).map( user => {
+				data.push(
+					{
+						type: 'histogram',
+						name: user,
+						marker: {color: msgDict[user]['color']},
+						x: msgDict[user]['texts'].map(text => text['date']),
+						autobinx: true,
+						autobiny: true
+					}
+				);
+			});
+
+			const layout = { 
+				title: 'Message Count Over Time',
+				yaxis: { title: 'Message Count' } 
+			};
+
+			Plotly.react(idPlot, data, layout);
+		}
+
 		/* emojis dont have a length of == 1
 		 * wat do 
 		 * also when someone sends media, now the "<media omitted>" counts as characters
@@ -398,7 +458,6 @@
 					msgDict[user]['texts'].reduce( (acc, val) => {
 						// dont count the characters of the omitted media text
 						if (mediaRegex.exec( val['text'] ) !== null) {
-							console.log("Media omitted gefunden von User: ", user, val);
 							return acc;
 						} else {
 							return acc + val['text'].length;
@@ -490,6 +549,7 @@
 				graphRowTotalMessagesAndPercentages,
 				graphRowTotalCharactersAndPercentages,
 				graphRowTotalMedia,
+				graphRowMessagesPerDate,
 				consoleTotalMessagesAndPercentages,
 			];
 			processFunctions.forEach(func => func(msgDict));
