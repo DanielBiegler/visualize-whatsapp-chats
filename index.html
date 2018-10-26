@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
+	<!-- For convenient offline development: uncomment, comment out again before release. -->
+	<!-- <link rel="stylesheet" href="css/bootstrap.min.css"> -->
+
+	<style>
+		a {
+			font-weight: bold;
+		}
+	</style>
+
+    <title>Visualize WhatsApp Chats</title>
+  </head>
+  <body>
+    <!-- Settings -->
+	<div class="container mt-5">
+		<div class="row">
+			<div class="col">
+				<h1>Visualizing WhatsApp-Chats</h1>
+				<p class="text-muted"><a href="/demo.html">Click here for a Demo.</a><br>Need help? Explanation at the bottom! <a href="#explanation">Click&nbsp;to&nbsp;here&nbsp;scroll.</a></p>
+			</div>
+		</div>
+
+		<hr>
+
+		<div class="row text-center">
+			<div class="col-sm-12 col-md-6">
+				<h5 class="text-left mb-3">1. Open Chat Log:</h5>
+				<label class="btn btn-outline-primary d-block" for="input-file">
+					Open New Chat Log
+					<input id="input-file" name="input-file" class="form-control d-none" type="file">
+				</label>
+			</div>
+			<div class="col-sm-12 col-md-4 mt-4 mt-md-0 ">
+				<h5 class="text-left mb-3 text-muted">
+					Chosen File
+				</h5>
+				<input id="input-filename" class="form-control text-muted" type="text" value="Filename will show up here." readonly>
+			</div>
+			<div class="col-sm-12 col-md-2 mt-4 mt-md-0">
+				<h5 class="text-left mb-3 text-muted" data-toggle="tooltip" title="If you want to convert your chat into a .csv file so you can process it yourself.">Optional<u><sup>?</sup></u></h5>
+				<button id="btn-csv" class="form-control btn btn-outline-secondary" style="white-space: normal">Export to .CSV</button>
+			</div>
+		</div>
+	
+		<hr class="my-3">
+
+		<div class="row text-center">
+			<div class="col-sm-12 col-md-6">
+				<button class="btn btn-primary w-100" id="btn-start">
+					Start Processing
+				</button>
+			</div>
+		</div>
+	
+		<div id="plotted-content" class="container">
+			<!-- Insert Plots here -->
+			<!-- For Every Plot -->
+			<!--     hr.my-3 -->
+			<!--     div.plot -->
+		</div>
+
+		<hr class="mt-5">
+		
+		<div class="row my-5">
+			<div class="col">
+				<h3 id="explanation">Explanation:</h3>
+				<p>TODO</p>
+		
+				<h3 class="mt-4">Tips:</h3>
+				<ul>
+					<li>TODO</li>
+				</ul>
+
+			</div>
+		</div>
+	</div>
+
+	<footer class="container mt-5 text-right text-sm-center">
+		<hr>
+		<div class="row">
+			<div class="col-12 col-sm-2 my-1">
+				<p class="text-muted">v0.0.0</p>
+			</div>
+			<div class="col-12 col-sm-2 my-1">
+				<p class="text-muted"><a href="https://github.com/DanielBiegler/visualize-whatsapp-chats">Source</a></p>
+			</div>
+			<div class="col-12 col-sm-2 my-1">
+				<p class="text-muted"><a href="https://github.com/DanielBiegler">Author</a></p>
+			</div>
+		</div>
+	</footer>
+
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js" integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em" crossorigin="anonymous"></script>
+	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+	<!-- For convenient offline development: uncomment, comment out again before release. -->
+	<!-- <script src="js/bootstrap.min.js"></script> -->
+	<!-- <script src="js/plotly-latest.min.js"></script> -->
+
+	<script>
+		// Activate tooltips
+		$(function () {
+			$('[data-toggle="tooltip"]').tooltip()
+		});
+
+		////////////////////////////////////////////
+		//////////// Start of App Logic ////////////
+		////////////////////////////////////////////
+		// Filehandler for the currently selected chat that you want to plot.
+		let currentFile = null;
+		// Handle file input
+		document.getElementById('input-file').addEventListener('change', function(event) {
+			currentFile = event.target.files[0];
+			// feedback
+			document.getElementById('input-filename').value = event.target.files[0].name;
+		}, false);
+
+		// important regex for processing of chat messages
+		const textRegex = /^(\d{1,2}).(\d{1,2}).(\d{2,4}),\s(\d{1,2}):(\d{1,2})\s-\s(.*?(?=:\s)):\s([\S\s]*?(?=\s\d{1,2}.\d{1,2}.\d{2,4})|[\S\s]*)/gmu;
+		// for omitted media files
+		const mediaRegex = /(<(?:Media omitted|Medien ausgelassen)>)$/gmui; // case insensitive
+		////////////////////////////////////////////
+		//////////////// CSV Export ////////////////
+		////////////////////////////////////////////
+		document.getElementById('btn-csv').addEventListener('click', function(event) {
+			// Feedback
+			if (currentFile === null) {
+				alert("No file specified. Pick a file first.");
+				return;
+			}
+
+			// Download a file with text content i.e. the .csv
+			function download(fileName, text) {
+				let element = document.createElement('a');
+				element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+				element.setAttribute('download', fileName);
+				element.style.display = 'none';
+				document.body.appendChild(element);
+				element.click();
+				document.body.removeChild(element);
+			}
+
+			// return a string containing the .csv version of the chat
+			function getCSVfromChat(fileContent) {
+				let csv = 'date (YYYY-MM-DD),time (hh:mm),name,text\n';
+				let m;
+				while ((m = textRegex.exec(fileContent)) !== null) {
+					// This is necessary to avoid infinite loops with zero-width matches
+					if (m.index === textRegex.lastIndex) {
+						textRegex.lastIndex++;
+					}
+
+					csv += `${m[3]}-${m[2]}-${m[1]},${m[4]}:${m[5]},${m[6]},"${m[7]}",\n`;
+				}
+
+				return csv;
+			}
+
+			// Handle the .csv export
+			let fileReader = new FileReader();
+			fileReader.onload = function(e) {
+				let fileContent = fileReader.result;
+				let csv = getCSVfromChat(fileContent);
+				// the filename equals the original filename but with a .csv extension
+				download((currentFile.name.substr(0, currentFile.name.lastIndexOf('.')) || currentFile.name) + '.csv', csv)
+			}
+			fileReader.readAsText(currentFile);
+		});
+
+		////////////////////////////////////////////
+		//////////////// Processing ////////////////
+		////////////////////////////////////////////
+		// see getMessageDictfromChat for msgDict Layout
+		function consoleTotalMessagesAndPercentages(msgDict) {
+			console.warn('File:', currentFile.name);
+			let sumTotal = 0;
+			Object.keys(msgDict).forEach(key => {
+				sumTotal += msgDict[key]['texts'].length;
+			});
+
+			const totals = [];
+			Object.keys(msgDict).forEach( user => {
+				totals.push([
+					user,
+					msgDict[user]['texts'].length,
+					msgDict[user]['color']
+				]);
+			});
+			// descending order
+			totals.sort((a, b) => b[1] - a[1]);
+			
+			console.log("A sum of", sumTotal, "message/s has been sent where:");
+			totals.forEach(pair => {
+				console.log('  ', pair[0], '=>', pair[1], '(', ((pair[1] / sumTotal) * 100).toFixed(2), '% )');
+			});
+		}
+
+		// see getMessageDictfromChat for msgDict Layout
+		function graphRowTotalMessagesAndPercentages(msgDict) {
+			// Create elements for plots if needed
+			if ($('#plot-total-pie').length == 0 && $('#plot-total-bar').length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-pie',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-bar',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			// Create items array to make the totals-dictionary sortable
+			let items = Object.keys(msgDict).map(function(key) {
+				return [key, msgDict[key]['texts'].length, msgDict[key]['color']];
+			});
+			// descending order
+			items.sort((a, b) => b[1] - a[1]);
+			const values = items.map(val => val[1]);
+			const labels = items.map(val => val[0]);
+			const color  = items.map(val => val[2]);
+
+			Plotly.react('plot-total-pie', [{
+				values: values,
+				labels: labels,
+				hoverinfo: 'label+percent',
+				type: 'pie',
+				hole: 0.6,
+				marker: {
+					colors: color
+				}
+			}], { 
+				title: '% of messages per user'
+			});
+
+			Plotly.react('plot-total-bar', [{
+				y: values,
+				x: labels,
+				text: values,
+				textposition: 'auto',
+				marker: {
+    				color: color
+				},
+				type: 'bar'
+			}], { 
+				title: 'Message count per user',
+				// xaxis: { title: 'User' },
+				yaxis: { title: 'Messages' } 
+			});
+		}
+
+		/*
+		 */
+		function graphRowTotalMedia(msgDict) {
+			const sums = [];
+			Object.keys(msgDict).map( user => {
+				sums.push([
+					user,
+					msgDict[user]['texts'].reduce( (acc, val) => {
+						// dont count the characters of the omitted media text
+						if (mediaRegex.exec( val['text'] ) !== null) {
+							return acc + 1;
+						} else {
+							return acc;
+						}
+							
+					}, 0 ),
+					msgDict[user]['color']
+				]);
+			});
+
+			// descending order
+			sums.sort((a, b) => b[1] - a[1]);
+			const values = sums.map(val => val[1]);
+			const labels = sums.map(val => val[0]);
+			const color  = sums.map(val => val[2]);
+			
+			const idPie = 'plot-total-media-pie';
+			const idBar = 'plot-total-media-bar';
+			// Create elements for plots if needed
+			if ($('#'+idPie).length == 0 && $('#'+idBar).length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: idPie,
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: idBar,
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			Plotly.react(idBar, [{
+				y: values,
+				x: labels,
+				text: values,
+				textposition: 'auto',
+				marker:{
+    				color: color
+				},
+				type: 'bar'
+			}], { 
+				title: 'Media count per user',
+				// xaxis: { title: 'User' },
+				yaxis: { title: 'Media' } 
+			});
+
+			Plotly.react(idPie, [{
+				values: values,
+				labels: labels,
+				hoverinfo: 'label+percent',
+				type: 'pie',
+				hole: 0.6,
+				marker: {
+					colors: color
+				}
+			}], { 
+				title: '% of Media per user'
+			});
+		}
+
+		/* Messages per:
+		 *  - hour
+		 *  - weekday
+		 *  - week
+		 *  - month
+		 *  - year
+		 * 
+		 */
+		function graphRowMessagesPerDate(msgDict) {
+			const idPlot = 'plot-per-date-line';
+			// Create elements for plots if needed
+			if ($('#'+idPlot).length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12',
+							style: 'height: 500px;'
+						})
+						.append(
+							$('<div/>', {
+								id: idPlot,
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			const data = [];
+			Object.keys(msgDict).map( user => {
+				data.push(
+					{
+						type: 'histogram',
+						name: user,
+						marker: {color: msgDict[user]['color']},
+						x: msgDict[user]['texts'].map(text => text['date']),
+						autobinx: true,
+						autobiny: true
+					}
+				);
+			});
+
+			const layout = { 
+				title: 'Message Count Over Time',
+				yaxis: { title: 'Message Count' } 
+			};
+
+			Plotly.react(idPlot, data, layout);
+		}
+
+		/* emojis dont have a length of == 1
+		 * wat do 
+		 * also when someone sends media, now the "<media omitted>" counts as characters
+		 */
+		function graphRowTotalCharactersAndPercentages(msgDict) {
+			const sums = [];
+			Object.keys(msgDict).map( user => {
+				// sums = [ ["name", 123], ... ]
+				sums.push([
+					user,
+					msgDict[user]['texts'].reduce( (acc, val) => {
+						// dont count the characters of the omitted media text
+						if (mediaRegex.exec( val['text'] ) !== null) {
+							return acc;
+						} else {
+							return acc + val['text'].length;
+						}
+					}, 0 ),
+					msgDict[user]['color']
+				]);
+			});
+			
+			// descending order
+			sums.sort((a, b) => b[1] - a[1]);
+			const values = sums.map(val => val[1]);
+			const labels = sums.map(val => val[0]);
+			const color  = sums.map(val => val[2]);
+			
+			// Create elements for plots if needed
+			if ($('#plot-total-characters-bar').length == 0 && $('#plot-total-characters-pie').length == 0 )  {
+				$('#plotted-content')
+				.append(
+					$('<hr/>', {
+						class: 'my-3'
+					})
+				)
+				.append(
+					$('<div/>', {
+						class: 'row'
+					})
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-characters-bar',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+					.append(
+						$('<div/>', {
+							class: 'col-sm-12 col-md-6',
+							style: 'height: 400px;'
+						})
+						.append(
+							$('<div/>', {
+								id: 'plot-total-characters-pie',
+								class: 'responsive-plot'
+							})
+						)
+
+					)
+				);
+			}
+
+			Plotly.react('plot-total-characters-bar', [{
+				y: values,
+				x: labels,
+				text: values,
+				textposition: 'auto',
+				marker:{
+    				color: color
+				},
+				type: 'bar'
+			}], { 
+				title: 'Character count per user',
+				// xaxis: { title: 'User' },
+				yaxis: { title: 'Characters' } 
+			});
+
+			Plotly.react('plot-total-characters-pie', [{
+				values: values,
+				labels: labels,
+				hoverinfo: 'label+percent',
+				type: 'pie',
+				hole: 0.6,
+				marker: {
+					colors: color
+				}
+			}], { 
+				title: '% of characters per user'
+			});
+
+		}
+
+		function processAll(msgDict = {}) {
+			const processFunctions = [
+				graphRowTotalMessagesAndPercentages,
+				graphRowTotalCharactersAndPercentages,
+				graphRowTotalMedia,
+				graphRowMessagesPerDate,
+				consoleTotalMessagesAndPercentages,
+			];
+			processFunctions.forEach(func => func(msgDict));
+		}
+
+		document.getElementById('btn-start').addEventListener('click', function(event) {
+			// Feedback
+			if (currentFile === null) {
+				alert("No file specified. Pick a file first.");
+				return;
+			}
+
+			function getMessageDictfromChat(fileContent) {
+				// in future replace the others
+				const colors = [
+					'#29B6F6',  // material design 400
+					'#FFCA28',  // material design 400
+					// standard plotly colors vvv
+					'#2ca02c',
+					'#d62728',
+					'#9467bd',
+					'#8c564b',
+					'#e377c2',
+					'#7f7f7f',
+					'#bcbd22',
+					'#17becf',
+				];
+				let color_index = 0;
+
+				// "<user>": {"texts": [{<date>, <text>}, ..], "color": "#ff00ff"}
+				const dict = {};
+				let m;
+				while ((m = textRegex.exec(fileContent)) !== null) {
+					// This is necessary to avoid infinite loops with zero-width matches
+					if (m.index === textRegex.lastIndex) {
+						textRegex.lastIndex++;
+					}
+
+					if(dict.hasOwnProperty(m[6]) == false) {
+						if (color_index >= colors.length) {
+							color_index = 0;
+						}
+
+						dict[m[6]] = { 'texts': [], 'color': colors[color_index] };
+						color_index += 1;
+					}
+					
+					dict[m[6]]['texts'].push(
+						{
+							"date": new Date(m[3], parseInt(m[2]) - 1, m[1], m[4], m[5]),
+							"text": m[7]
+						});
+				}
+				return dict;
+			}
+
+			// Handle the processing of the chat log
+			let fileReader = new FileReader();
+			fileReader.onload = function(e) {
+				let fileContent = fileReader.result;
+				// maybe you need an array for ease of use for some statistic?
+				// let messageList = getMessageListFromChat();
+				const msgDict = getMessageDictfromChat(fileContent); // better name for function?
+				processAll(msgDict);
+				makePlotsResponsive();
+			}
+			fileReader.readAsText(currentFile);
+		});
+
+		// This makes all plots responsive if they have the 'responsive-plot' class
+		function makePlotsResponsive() {
+			const WIDTH_IN_PERCENT_OF_PARENT = 100,
+				 HEIGHT_IN_PERCENT_OF_PARENT = 100;
+			
+			const nodesToResize = Plotly.d3.selectAll(".responsive-plot")
+				.style({
+					width: WIDTH_IN_PERCENT_OF_PARENT + '%',
+					// 'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
+					
+					height: HEIGHT_IN_PERCENT_OF_PARENT + '%', // 'vh'-unit breaks it
+					// 'margin-top': (100 - HEIGHT_IN_PERCENT_OF_PARENT) / 2 + '%'
+				}
+			)[0]; // [0] is important because otherwise it returns an array in an array
+
+			window.onresize = function() {
+				for (let i = 0; i < nodesToResize.length; i++) {
+					Plotly.Plots.resize(nodesToResize[i]);
+				}
+			};
+
+			window.onresize();
+		};
+	</script>
+  </body>
+</html>
