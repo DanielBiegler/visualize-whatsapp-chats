@@ -3,6 +3,10 @@
 ## Demo
 https://danielbiegler.github.io/visualize-whatsapp-chats/
 
+## Example Screenshot/s
+![Example Whatsapp Chatlog Visualized](../../blob/master/Screenshot_20181218_000313.png)
+This screenshot doesn't show all the stats you get.
+
 ## Why
 I was looking for a visualizer and found some incomplete small examples or sites who you have to send your chat to. *(Wtf, are you insane?)* 
 
